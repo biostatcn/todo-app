@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Todo List</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
+  }
+  .container {
+    width: 100%;
+    max-width: 700px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 28px;
+    margin-bottom: 24px;
+    color: #1a1a2e;
+  }
+
+  /* 添加区域 */
+  .add-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: #fff;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 16px;
+  }
+  .add-form input, .add-form select {
+    padding: 8px 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .add-form input:focus, .add-form select:focus {
+    border-color: #4f46e5;
+  }
+  .add-form .input-text {
+    flex: 1 1 200px;
+    min-width: 0;
+  }
+  .add-form .input-assignee {
+    flex: 0 1 90px;
+  }
+  .add-form .input-date {
+    flex: 0 1 140px;
+  }
+  .add-form .input-priority {
+    flex: 0 1 80px;
+  }
+  .add-form .btn-add {
+    flex: 0 0 auto;
+    padding: 8px 20px;
+    background: #4f46e5;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .add-form .btn-add:hover { background: #4338ca; }
+
+  /* 工具栏 */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .toolbar .filter-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .toolbar .filter-btn {
+    padding: 6px 14px;
+    border: 1px solid #d9d9d9;
+    border-radius: 16px;
+    background: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #555;
+  }
+  .toolbar .filter-btn:hover { border-color: #4f46e5; color: #4f46e5; }
+  .toolbar .filter-btn.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar label { font-size: 13px; color: #888; }
+  .toolbar select {
+    padding: 6px 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fff;
+    outline: none;
+  }
+
+  /* 待办列表 */
+  .todo-list { list-style: none; }
+  .todo-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    padding: 12px 16px;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    margin-bottom: 8px;
+    transition: box-shadow 0.2s;
+  }
+  .todo-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .todo-item .todo-seq {
+    width: 24px;
+    flex-shrink: 0;
+    text-align: center;
+    font-size: 12px;
+    color: #bbb;
+    font-weight: 500;
+  }
+  .todo-item .checkbox {
+    border-radius: 50%;
+    border: 2px solid #d9d9d9;
+    flex-shrink: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 12px;
+    color: transparent;
+  }
+  .todo-item .checkbox.checked {
+    background: #22c55e;
+    border-color: #22c55e;
+    color: #fff;
+  }
+
+  .todo-item .body {
+    flex: 1;
+    min-width: 0;
+  }
+  .todo-item .text {
+    font-size: 15px;
+    word-break: break-word;
+  }
+  .todo-item .text.done {
+    text-decoration: line-through;
+    color: #aaa;
+  }
+  .todo-item .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 12px;
+    align-items: center;
+  }
+  .todo-item .meta .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #f0f0f0;
+    color: #666;
+  }
+  .todo-item .meta .tag.assignee::before { content: "👤 "; }
+  .todo-item .meta .tag.due-date { }
+  .todo-item .meta .tag.overdue { background: #fef2f2; color: #dc2626; }
+  .todo-item .meta .tag.today { background: #fef9c3; color: #a16207; }
+  .todo-item .meta .tag.done-date { background: #f0fdf4; color: #16a34a; }
+  .todo-item .meta .priority-high { background: #fef2f2; color: #dc2626; }
+  .todo-item .meta .priority-medium { background: #fef9c3; color: #a16207; }
+  .todo-item .meta .priority-low { background: #f0fdf4; color: #16a34a; }
+  .todo-item .edit-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #4f46e5;
+    border-radius: 6px;
+    font-size: 15px;
+    outline: none;
+  }
+
+  .todo-item .actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .todo-item .actions button {
+    width: 28px; height: 28px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    background: transparent;
+    color: #999;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .todo-item .actions .btn-edit:hover { background: #eef2ff; color: #4f46e5; }
+  .todo-item .actions .btn-delete:hover { background: #fef2f2; color: #dc2626; }
+
+  /* 底部统计 */
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 4px;
+    font-size: 13px;
+    color: #888;
+  }
+  .footer .btn-clear {
+    padding: 6px 14px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    color: #dc2626;
+    transition: all 0.2s;
+  }
+  .footer .btn-clear:hover { background: #fef2f2; border-color: #dc2626; }
+
+  /* 通知状态 */
+  .notif-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 10px 16px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    font-size: 13px;
+    color: #666;
+  }
+  .notif-bar .notif-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .notif-bar .notif-dot.on { background: #22c55e; }
+  .notif-bar .notif-dot.off { background: #d9d9d9; }
+  .notif-bar .notif-dot.denied { background: #dc2626; }
+  .notif-bar .btn-notif {
+    margin-left: auto;
+    padding: 4px 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .notif-bar .btn-notif:hover { border-color: #4f46e5; color: #4f46e5; }
+  .notif-bar .high-count {
+    margin-left: 4px;
+    background: #fef2f2;
+    color: #dc2626;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* 空状态 */
+  .empty {
+    text-align: center;
+    padding: 48px 16px;
+    color: #bbb;
+    font-size: 15px;
+  }
+
+  /* 响应式 */
+  @media (max-width: 500px) {
+    body { padding: 16px 8px; }
+    .add-form .input-text { flex: 1 1 100%; }
+    .todo-item { flex-wrap: wrap; }
+    .toolbar .filter-group .filter-btn { font-size: 12px; padding: 4px 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>✅ Todo List</h1>
+
+  <!-- 通知栏 -->
+  <div class="notif-bar" id="notifBar">
+    <span class="notif-dot off" id="notifDot"></span>
+    <span id="notifStatus">浏览器通知已关闭</span>
+    <span class="high-count" id="highCount" style="display:none"></span>
+    <button class="btn-notif" id="btnNotif">开启通知</button>
+  </div>
+
+  <!-- 添加表单 -->
+  <div class="add-form">
+    <input class="input-text" id="inputText" placeholder="输入待办事项..." autofocus>
+    <input class="input-assignee" id="inputAssignee" placeholder="负责人">
+    <input class="input-date" id="inputDate" type="date">
+    <select class="input-priority" id="inputPriority">
+      <option value="medium">中优先级</option>
+      <option value="high">高优先级</option>
+      <option value="low">低优先级</option>
+    </select>
+    <button class="btn-add" id="btnAdd">添加</button>
+  </div>
+
+  <!-- 工具栏 -->
+  <div class="toolbar">
+    <div class="filter-group" id="filterGroup">
+      <button class="filter-btn active" data-filter="all">全部</button>
+      <button class="filter-btn" data-filter="active">进行中</button>
+      <button class="filter-btn" data-filter="completed">已完成</button>
+      <button class="filter-btn" data-filter="overdue">已过期</button>
+      <button class="filter-btn" data-filter="today">今天</button>
+      <button class="filter-btn" data-filter="week">本周</button>
+      <button class="filter-btn" data-filter="month">本月</button>
+    </div>
+    <div class="spacer"></div>
+    <label>负责人</label>
+    <select id="filterAssignee">
+      <option value="">全部</option>
+    </select>
+    <label>排序</label>
+    <select id="sortBy">
+      <option value="created-desc">创建时间 ↓</option>
+      <option value="created-asc">创建时间 ↑</option>
+      <option value="due-asc">截止日期 ↑</option>
+      <option value="due-desc">截止日期 ↓</option>
+      <option value="priority">优先级</option>
+    </select>
+  </div>
+
+  <!-- 待办列表 -->
+  <ul class="todo-list" id="todoList"></ul>
+
+  <!-- 底部 -->
+  <div class="footer">
+    <span id="stats"></span>
+    <button class="btn-clear" id="btnClear">清除已完成</button>
+  </div>
+</div>
+
+<script>
+// ====== 数据层 ======
+const STORAGE_KEY = 'todo_list';
+let todos = [];
+let currentFilter = 'all';
+let currentAssignee = '';
+let currentSort = 'created-desc';
+let editingId = null;
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    todos = raw ? JSON.parse(raw) : [];
+  } catch { todos = []; }
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+}
+
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function getToday() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getWeekRange() {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? 6 : day - 1; // 周一为一周开始
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - diff);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  return [mon.toISOString().slice(0, 10), sun.toISOString().slice(0, 10)];
+}
+
+function getMonthRange() {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return [first.toISOString().slice(0, 10), last.toISOString().slice(0, 10)];
+}
+
+// ====== 业务逻辑 ======
+function addTodo(text, assignee, dueDate, priority) {
+  if (!text.trim()) return;
+  todos.unshift({
+    id: generateId(),
+    text: text.trim(),
+    completed: false,
+    createdAt: new Date().toISOString(),
+    dueDate: dueDate || null,
+    assignee: assignee.trim() || '',
+    priority: priority || 'medium'
+  });
+  saveData();
+  render();
+}
+
+function deleteTodo(id) {
+  todos = todos.filter(t => t.id !== id);
+  saveData();
+  render();
+}
+
+function toggleTodo(id) {
+  const todo = todos.find(t => t.id === id);
+  if (todo) {
+    todo.completed = !todo.completed;
+    saveData();
+    render();
+  }
+}
+
+function updateTodoText(id, text) {
+  const todo = todos.find(t => t.id === id);
+  if (todo && text.trim()) {
+    todo.text = text.trim();
+    saveData();
+    render();
+  }
+}
+
+function clearCompleted() {
+  todos = todos.filter(t => !t.completed);
+  saveData();
+  render();
+}
+
+// 获取所有负责人列表
+function getAssigneeList() {
+  const set = new Set();
+  todos.forEach(t => { if (t.assignee) set.add(t.assignee); });
+  return [...set].sort();
+}
+
+// ====== 筛选与排序 ======
+function getFilteredTodos() {
+  let list = [...todos];
+
+  // 筛选
+  const today = getToday();
+  const [weekStart, weekEnd] = getWeekRange();
+  const [monthStart, monthEnd] = getMonthRange();
+
+  switch (currentFilter) {
+    case 'active':
+      list = list.filter(t => !t.completed);
+      break;
+    case 'completed':
+      list = list.filter(t => t.completed);
+      break;
+    case 'overdue':
+      list = list.filter(t => !t.completed && t.dueDate && t.dueDate < today);
+      break;
+    case 'today':
+      list = list.filter(t => t.dueDate === today);
+      break;
+    case 'week':
+      list = list.filter(t => t.dueDate && t.dueDate >= weekStart && t.dueDate <= weekEnd);
+      break;
+    case 'month':
+      list = list.filter(t => t.dueDate && t.dueDate >= monthStart && t.dueDate <= monthEnd);
+      break;
+    default: break;
+  }
+
+  // 按负责人筛选
+  if (currentAssignee) {
+    list = list.filter(t => t.assignee === currentAssignee);
+  }
+
+  // 排序
+  const priorityWeight = { high: 0, medium: 1, low: 2 };
+  switch (currentSort) {
+    case 'created-asc':
+      list.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      break;
+    case 'created-desc':
+      list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      break;
+    case 'due-asc':
+      list.sort((a, b) => {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return a.dueDate.localeCompare(b.dueDate);
+      });
+      break;
+    case 'due-desc':
+      list.sort((a, b) => {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return b.dueDate.localeCompare(a.dueDate);
+      });
+      break;
+    case 'priority':
+      list.sort((a, b) => priorityWeight[a.priority] - priorityWeight[b.priority]);
+      break;
+    default: break;
+  }
+
+  return list;
+}
+
+// ====== 视图渲染 ======
+function render() {
+  const list = getFilteredTodos();
+  const todoListEl = document.getElementById('todoList');
+  const today = getToday();
+
+  // 更新负责人下拉
+  const assigneeSelect = document.getElementById('filterAssignee');
+  const assignees = getAssigneeList();
+  const currentVal = assigneeSelect.value;
+  assigneeSelect.innerHTML = '<option value="">全部</option>' +
+    assignees.map(a => `<option value="${a}">${a}</option>`).join('');
+  assigneeSelect.value = assignees.includes(currentVal) ? currentVal : '';
+
+  if (list.length === 0) {
+    todoListEl.innerHTML = '<div class="empty">暂无待办事项</div>';
+  } else {
+    todoListEl.innerHTML = list.map((todo, index) => {
+      const seqId = index + 1;
+      const isOverdue = !todo.completed && todo.dueDate && todo.dueDate < today;
+      const isToday = todo.dueDate === today;
+      const isEditing = editingId === todo.id;
+
+      const textClass = todo.completed ? 'text done' : 'text';
+      const checkedClass = todo.completed ? 'checkbox checked' : 'checkbox';
+
+      // 日期显示
+      let dateTag = '';
+      if (todo.dueDate) {
+        const d = new Date(todo.dueDate + 'T00:00:00');
+        const display = `${d.getMonth()+1}/${d.getDate()}`;
+        let cls = 'tag due-date';
+        if (todo.completed) cls += ' done-date';
+        else if (isOverdue) cls += ' overdue';
+        else if (isToday) cls += ' today';
+        dateTag = `<span class="${cls}">📅 ${display}</span>`;
+      } else {
+        dateTag = `<span class="tag due-date" style="color:#bbb;">📅 无截止</span>`;
+      }
+
+      // 负责人标签
+      const assigneeTag = todo.assignee
+        ? `<span class="tag assignee">${todo.assignee}</span>`
+        : '';
+
+      // 优先级标签
+      const priorityLabel = { high: '高', medium: '中', low: '低' };
+      const priorityTag = `<span class="tag priority-${todo.priority}">${priorityLabel[todo.priority]}优先级</span>`;
+
+      // 文本或编辑框
+      let bodyHtml;
+      if (isEditing) {
+        bodyHtml = `<input class="edit-input" type="text" value="${escapeHtml(todo.text)}" data-id="${todo.id}">`;
+      } else {
+        bodyHtml = `<div class="${textClass}">${escapeHtml(todo.text)}</div>
+          <div class="meta">
+            ${priorityTag}
+            ${assigneeTag}
+            ${dateTag}
+          </div>`;
+      }
+
+      return `<li class="todo-item" data-id="${todo.id}">
+        <span class="todo-seq">${seqId}</span>
+        <div class="${checkedClass}" data-action="toggle">${todo.completed ? '✓' : ''}</div>
+        <div class="body">${bodyHtml}</div>
+        <div class="actions">
+          <button class="btn-edit" data-action="edit" title="编辑">✎</button>
+          <button class="btn-delete" data-action="delete" title="删除">✕</button>
+        </div>
+      </li>`;
+    }).join('');
+  }
+
+  // 统计
+  const total = todos.length;
+  const active = todos.filter(t => !t.completed).length;
+  document.getElementById('stats').textContent = `共 ${total} 项，${active} 项未完成`;
+  document.getElementById('btnClear').style.display = total > 0 ? '' : 'none';
+
+  // 更新筛选按钮状态
+  document.querySelectorAll('#filterGroup .filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === currentFilter);
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ====== 事件绑定 ======
+// 添加待办
+function handleAdd() {
+  const text = document.getElementById('inputText');
+  const assignee = document.getElementById('inputAssignee');
+  const date = document.getElementById('inputDate');
+  const priority = document.getElementById('inputPriority');
+  addTodo(text.value, assignee.value, date.value, priority.value);
+  text.value = '';
+  date.value = '';
+  text.focus();
+}
+
+document.getElementById('btnAdd').addEventListener('click', handleAdd);
+document.getElementById('inputText').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handleAdd();
+});
+
+// 筛选按钮
+document.getElementById('filterGroup').addEventListener('click', e => {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  currentFilter = btn.dataset.filter;
+  render();
+});
+
+// 负责人筛选
+document.getElementById('filterAssignee').addEventListener('change', e => {
+  currentAssignee = e.target.value;
+  render();
+});
+
+// 排序
+document.getElementById('sortBy').addEventListener('change', e => {
+  currentSort = e.target.value;
+  render();
+});
+
+// 清除已完成
+document.getElementById('btnClear').addEventListener('click', clearCompleted);
+
+// 列表事件代理（toggle, delete, edit, edit提交）
+document.getElementById('todoList').addEventListener('click', e => {
+  const item = e.target.closest('.todo-item');
+  if (!item) return;
+  const id = item.dataset.id;
+  const action = e.target.dataset.action;
+
+  if (action === 'toggle') {
+    toggleTodo(id);
+  } else if (action === 'delete') {
+    if (confirm('确定删除该待办事项？')) deleteTodo(id);
+  } else if (action === 'edit') {
+    editingId = id;
+    render();
+    // 自动聚焦和选中
+    const input = item.querySelector('.edit-input');
+    if (input) { input.focus(); input.select(); }
+  }
+});
+
+// 编辑提交（回车保存，失焦保存）
+document.getElementById('todoList').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.classList.contains('edit-input')) {
+    const id = e.target.dataset.id;
+    updateTodoText(id, e.target.value);
+    editingId = null;
+    render();
+  } else if (e.key === 'Escape' && e.target.classList.contains('edit-input')) {
+    editingId = null;
+    render();
+  }
+});
+
+document.getElementById('todoList').addEventListener('blur', e => {
+  if (e.target.classList.contains('edit-input')) {
+    const id = e.target.dataset.id;
+    updateTodoText(id, e.target.value);
+    editingId = null;
+    render();
+  }
+}, true);
+
+// ====== 浏览器通知 ======
+const NOTIF_DAILY_KEY = 'todo_notif_last_date';
+
+function getNotifPermission() {
+  return Notification.permission;
+}
+
+async function requestNotifPermission() {
+  if (!('Notification' in window)) return 'denied';
+  if (Notification.permission === 'default') {
+    const result = await Notification.requestPermission();
+    return result;
+  }
+  return Notification.permission;
+}
+
+function showNotif(title, body, tag) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    new Notification(title, { body, tag, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">✅</text></svg>' });
+  } catch { /* fallback: some old browsers */ }
+}
+
+function getHighPriorityActive() {
+  return todos.filter(t => !t.completed && t.priority === 'high');
+}
+
+function checkDailyReminder() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const today = getToday();
+  const lastDate = localStorage.getItem(NOTIF_DAILY_KEY);
+  if (lastDate === today) return; // 今天已经提醒过了
+
+  const highTodos = getHighPriorityActive();
+  if (highTodos.length === 0) return;
+
+  // 标记今天已提醒
+  localStorage.setItem(NOTIF_DAILY_KEY, today);
+
+  // 发送通知
+  const title = `📌 ${highTodos.length} 项高优先级待办`;
+  const body = highTodos.slice(0, 5).map(t => `• ${t.text}${t.dueDate ? ' (' + t.dueDate.slice(5) + '截止)' : ''}`).join('\n');
+  const suffix = highTodos.length > 5 ? `\n...及其他 ${highTodos.length - 5} 项` : '';
+  showNotif(title, body + suffix, 'daily-high-priority');
+
+  // 更新UI提醒
+  updateNotifBar();
+}
+
+function checkOverdueReminder() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const overdue = todos.filter(t => !t.completed && t.dueDate && t.dueDate < getToday());
+  if (overdue.length === 0) return;
+  showNotif(
+    `⏰ ${overdue.length} 项待办已过期`,
+    overdue.slice(0, 5).map(t => `• ${t.text}（${t.dueDate.slice(5)}截止）`).join('\n'),
+    'overdue-alert'
+  );
+}
+
+function updateNotifBar() {
+  const dot = document.getElementById('notifDot');
+  const status = document.getElementById('notifStatus');
+  const btn = document.getElementById('btnNotif');
+  const count = document.getElementById('highCount');
+
+  const perm = !('Notification' in window) ? 'denied' : Notification.permission;
+  const highTodos = getHighPriorityActive();
+
+  // 高优先级数量
+  if (highTodos.length > 0) {
+    count.textContent = `高优先级 ${highTodos.length}`;
+    count.style.display = '';
+  } else {
+    count.style.display = 'none';
+  }
+
+  if (perm === 'granted') {
+    dot.className = 'notif-dot on';
+    status.textContent = `通知已开启${highTodos.length > 0 ? ` · ${highTodos.length} 项高优先级待办` : ''}`;
+    btn.textContent = '测试提醒';
+    btn.style.display = '';
+  } else if (perm === 'denied') {
+    dot.className = 'notif-dot denied';
+    status.textContent = '通知已被浏览器拒绝，请在浏览器设置中开启';
+    btn.textContent = '重新开启';
+    btn.style.display = '';
+  } else {
+    dot.className = 'notif-dot off';
+    status.textContent = '浏览器通知未开启';
+    btn.textContent = '开启通知';
+    btn.style.display = '';
+  }
+}
+
+async function handleNotifButton() {
+  const perm = !('Notification' in window) ? 'denied' : Notification.permission;
+  if (perm === 'granted') {
+    // 手动测试 - 显示当前高优先级任务
+    const highTodos = getHighPriorityActive();
+    if (highTodos.length > 0) {
+      showNotif(
+        `📌 ${highTodos.length} 项高优先级待办`,
+        highTodos.slice(0, 5).map(t => `• ${t.text}${t.dueDate ? ' (' + t.dueDate.slice(5) + '截止)' : ''}`).join('\n'),
+        'manual-check'
+      );
+    } else {
+      showNotif('✅ 暂无高优先级待办', '继续保持！', 'manual-check-empty');
+    }
+    return;
+  }
+  const result = await requestNotifPermission();
+  updateNotifBar();
+  if (result === 'granted') {
+    checkDailyReminder();
+    checkOverdueReminder();
+  }
+}
+
+// ====== 启动 ======
+loadData();
+render();
+updateNotifBar();
+checkDailyReminder();
+setTimeout(checkOverdueReminder, 1000); // 延迟1秒，避免与每日提醒冲突
+
+// 通知按钮
+document.getElementById('btnNotif').addEventListener('click', handleNotifButton);
+
+// 添加新待办后，如果是高优先级且通知已开启，立即提醒
+const _origAddTodo = addTodo;
+addTodo = function(text, assignee, dueDate, priority) {
+  _origAddTodo(text, assignee, dueDate, priority);
+  if (priority === 'high' && Notification.permission === 'granted') {
+    showNotif('📌 新增高优先级待办', text, 'new-high');
+  }
+  updateNotifBar();
+};
+</script>
+</body>
+</html>
