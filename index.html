@@ -133,17 +133,20 @@
     font-weight: 500;
   }
   .todo-item .checkbox {
+    width: 26px; height: 26px; min-width: 26px;
     border-radius: 50%;
     border: 2px solid #d9d9d9;
-    flex-shrink: 0;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    font-size: 12px;
+    font-size: 16px;
     color: transparent;
+    background: #f8f8f8;
   }
+  .todo-item .checkbox:hover { border-color: #4f46e5; background: #eef2ff; transform: scale(1.1); }
+  .todo-item .checkbox.checked:hover { border-color: #16a34a; background: #22c55e; transform: scale(1.1); }
   .todo-item .checkbox.checked {
     background: #22c55e;
     border-color: #22c55e;
@@ -216,6 +219,23 @@
   }
   .todo-item .actions .btn-edit:hover { background: #eef2ff; color: #4f46e5; }
   .todo-item .actions .btn-delete:hover { background: #fef2f2; color: #dc2626; }
+  .todo-item .actions .btn-save,
+  .todo-item .actions .btn-cancel {
+    width: auto; height: auto;
+    padding: 4px 12px;
+    display: inline-flex;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .todo-item .actions .btn-save {
+    background: #4f46e5; color: #fff; border: none;
+  }
+  .todo-item .actions .btn-save:hover { background: #4338ca; }
+  .todo-item .actions .btn-cancel {
+    background: transparent; color: #999;
+    border: 1px solid #d9d9d9;
+  }
+  .todo-item .actions .btn-cancel:hover { border-color: #dc2626; color: #dc2626; }
 
   /* 底部统计 */
   .footer {
@@ -290,6 +310,47 @@
     font-size: 15px;
   }
 
+  /* 详细描述 */
+  .add-form .desc-section { width: 100%; }
+  .add-form .btn-toggle-desc {
+    background: none; border: none; color: #888;
+    font-size: 13px; cursor: pointer; padding: 4px 0;
+    transition: color 0.2s;
+  }
+  .add-form .btn-toggle-desc:hover { color: #4f46e5; }
+  .add-form .input-desc {
+    width: 100%; padding: 8px 12px;
+    border: 1px solid #d9d9d9; border-radius: 6px;
+    font-size: 14px; outline: none; resize: vertical;
+    font-family: inherit; margin-top: 8px; display: none;
+    transition: border-color 0.2s;
+  }
+  .add-form .input-desc:focus { border-color: #4f46e5; }
+
+  .todo-item .desc-area { margin-top: 6px; }
+  .todo-item .desc-text {
+    font-size: 13px; color: #666;
+    line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  }
+  .todo-item .desc-text.collapsed {
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .todo-item .btn-expand-desc {
+    background: none; border: none; color: #4f46e5;
+    font-size: 12px; cursor: pointer; padding: 2px 0;
+    display: block; margin-top: 2px;
+  }
+  .todo-item .btn-expand-desc:hover { text-decoration: underline; }
+  .todo-item .edit-desc {
+    width: 100%; padding: 6px 10px;
+    border: 1px solid #d9d9d9; border-radius: 6px;
+    font-size: 13px; outline: none; resize: vertical;
+    font-family: inherit; margin-top: 6px;
+    transition: border-color 0.2s;
+  }
+  .todo-item .edit-desc:focus { border-color: #4f46e5; }
+
   /* 响应式 */
   @media (max-width: 500px) {
     body { padding: 16px 8px; }
@@ -322,6 +383,10 @@
       <option value="low">低优先级</option>
     </select>
     <button class="btn-add" id="btnAdd">添加</button>
+    <div class="desc-section">
+      <button class="btn-toggle-desc" id="btnToggleDesc" type="button">＋ 添加详细描述</button>
+      <textarea class="input-desc" id="inputDesc" placeholder="输入详细描述..." rows="3"></textarea>
+    </div>
   </div>
 
   <!-- 工具栏 -->
@@ -407,11 +472,12 @@ function getMonthRange() {
 }
 
 // ====== 业务逻辑 ======
-function addTodo(text, assignee, dueDate, priority) {
+function addTodo(text, assignee, dueDate, priority, description) {
   if (!text.trim()) return;
   todos.unshift({
     id: generateId(),
     text: text.trim(),
+    description: description ? description.trim() : '',
     completed: false,
     createdAt: new Date().toISOString(),
     dueDate: dueDate || null,
@@ -432,15 +498,6 @@ function toggleTodo(id) {
   const todo = todos.find(t => t.id === id);
   if (todo) {
     todo.completed = !todo.completed;
-    saveData();
-    render();
-  }
-}
-
-function updateTodoText(id, text) {
-  const todo = todos.find(t => t.id === id);
-  if (todo && text.trim()) {
-    todo.text = text.trim();
     saveData();
     render();
   }
@@ -581,14 +638,19 @@ function render() {
       // 文本或编辑框
       let bodyHtml;
       if (isEditing) {
-        bodyHtml = `<input class="edit-input" type="text" value="${escapeHtml(todo.text)}" data-id="${todo.id}">`;
+        bodyHtml = `<input class="edit-input" type="text" value="${escapeHtml(todo.text)}" data-id="${todo.id}">
+          <textarea class="edit-desc" placeholder="详细描述..." data-id="${todo.id}">${escapeHtml(todo.description || '')}</textarea>`;
       } else {
         bodyHtml = `<div class="${textClass}">${escapeHtml(todo.text)}</div>
           <div class="meta">
             ${priorityTag}
             ${assigneeTag}
             ${dateTag}
-          </div>`;
+          </div>
+          ${todo.description ? `<div class="desc-area">
+            <div class="desc-text collapsed" data-action="toggle-desc">${escapeHtml(todo.description)}</div>
+            <button class="btn-expand-desc" data-action="toggle-desc">展开详情</button>
+          </div>` : ''}`;
       }
 
       return `<li class="todo-item" data-id="${todo.id}">
@@ -596,8 +658,11 @@ function render() {
         <div class="${checkedClass}" data-action="toggle">${todo.completed ? '✓' : ''}</div>
         <div class="body">${bodyHtml}</div>
         <div class="actions">
-          <button class="btn-edit" data-action="edit" title="编辑">✎</button>
-          <button class="btn-delete" data-action="delete" title="删除">✕</button>
+          ${isEditing
+            ? `<button class="btn-save" data-action="save">保存</button>
+               <button class="btn-cancel" data-action="cancel">取消</button>`
+            : `<button class="btn-edit" data-action="edit" title="编辑">✎</button>
+               <button class="btn-delete" data-action="delete" title="删除">✕</button>`}
         </div>
       </li>`;
     }).join('');
@@ -628,15 +693,30 @@ function handleAdd() {
   const assignee = document.getElementById('inputAssignee');
   const date = document.getElementById('inputDate');
   const priority = document.getElementById('inputPriority');
-  addTodo(text.value, assignee.value, date.value, priority.value);
+  const desc = document.getElementById('inputDesc');
+  const btnDesc = document.getElementById('btnToggleDesc');
+  addTodo(text.value, assignee.value, date.value, priority.value, desc.value);
   text.value = '';
   date.value = '';
+  desc.value = '';
+  desc.style.display = 'none';
+  btnDesc.textContent = '＋ 添加详细描述';
   text.focus();
 }
 
 document.getElementById('btnAdd').addEventListener('click', handleAdd);
 document.getElementById('inputText').addEventListener('keydown', e => {
   if (e.key === 'Enter') handleAdd();
+});
+
+// 详细描述展开/收起
+document.getElementById('btnToggleDesc').addEventListener('click', () => {
+  const desc = document.getElementById('inputDesc');
+  const btn = document.getElementById('btnToggleDesc');
+  const isHidden = desc.style.display === 'none' || desc.style.display === '';
+  desc.style.display = isHidden ? 'block' : 'none';
+  btn.textContent = isHidden ? '－ 收起详细描述' : '＋ 添加详细描述';
+  if (isHidden) setTimeout(() => desc.focus(), 100);
 });
 
 // 筛选按钮
@@ -679,14 +759,43 @@ document.getElementById('todoList').addEventListener('click', e => {
     // 自动聚焦和选中
     const input = item.querySelector('.edit-input');
     if (input) { input.focus(); input.select(); }
+  } else if (action === 'save') {
+    const todo = todos.find(t => t.id === id);
+    if (todo) {
+      const titleInput = item.querySelector('.edit-input');
+      const descEl = item.querySelector('.edit-desc');
+      if (titleInput && titleInput.value.trim()) todo.text = titleInput.value.trim();
+      if (descEl) todo.description = descEl.value.trim();
+      saveData();
+    }
+    editingId = null;
+    render();
+  } else if (action === 'cancel') {
+    editingId = null;
+    render();
+  } else if (action === 'toggle-desc') {
+    const descArea = e.target.closest('.desc-area');
+    if (!descArea) return;
+    const descText = descArea.querySelector('.desc-text');
+    const btn = descArea.querySelector('.btn-expand-desc');
+    if (descText) {
+      descText.classList.toggle('collapsed');
+      if (btn) btn.textContent = descText.classList.contains('collapsed') ? '展开详情' : '收起';
+    }
   }
 });
 
-// 编辑提交（回车保存，失焦保存）
+// 编辑提交（回车保存，Escape取消）
 document.getElementById('todoList').addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.classList.contains('edit-input')) {
     const id = e.target.dataset.id;
-    updateTodoText(id, e.target.value);
+    const todo = todos.find(t => t.id === id);
+    if (todo && e.target.value.trim()) {
+      todo.text = e.target.value.trim();
+      const descEl = document.querySelector(`.todo-item[data-id="${id}"] .edit-desc`);
+      if (descEl) todo.description = descEl.value.trim();
+      saveData();
+    }
     editingId = null;
     render();
   } else if (e.key === 'Escape' && e.target.classList.contains('edit-input')) {
@@ -694,15 +803,6 @@ document.getElementById('todoList').addEventListener('keydown', e => {
     render();
   }
 });
-
-document.getElementById('todoList').addEventListener('blur', e => {
-  if (e.target.classList.contains('edit-input')) {
-    const id = e.target.dataset.id;
-    updateTodoText(id, e.target.value);
-    editingId = null;
-    render();
-  }
-}, true);
 
 // ====== 浏览器通知 ======
 const NOTIF_DAILY_KEY = 'todo_notif_last_date';
@@ -836,9 +936,9 @@ document.getElementById('btnNotif').addEventListener('click', handleNotifButton)
 
 // 添加新待办后，如果是高优先级且通知已开启，立即提醒
 const _origAddTodo = addTodo;
-addTodo = function(text, assignee, dueDate, priority) {
-  _origAddTodo(text, assignee, dueDate, priority);
-  if (priority === 'high' && Notification.permission === 'granted') {
+addTodo = function(text, assignee, dueDate, priority, description) {
+  _origAddTodo(text, assignee, dueDate, priority, description);
+  if (('Notification' in window) && Notification.permission === 'granted') {
     showNotif('📌 新增高优先级待办', text, 'new-high');
   }
   updateNotifBar();
