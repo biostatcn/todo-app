@@ -1,0 +1,9 @@
+{
+  "name": "Todo List",
+  "short_name": "Todo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#4f46e5",
+  "description": "跨设备同步的待办事项列表"
+}

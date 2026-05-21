@@ -2,8 +2,9 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Todo List</title>
+<link rel="manifest" href="manifest.json">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -19,14 +20,171 @@
     width: 100%;
     max-width: 700px;
   }
-  h1 {
+
+  /* ====== Loading Screen ====== */
+  #loadingScreen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f2f5;
+    z-index: 100;
+  }
+  .loading-content { text-align: center; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid #e0e0e0;
+    border-top-color: #4f46e5;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-content p { color: #888; font-size: 14px; }
+
+  /* ====== Auth Screen ====== */
+  #authScreen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f2f5;
+    z-index: 99;
+    padding: 24px;
+  }
+  .auth-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 48px 36px;
     text-align: center;
-    font-size: 28px;
-    margin-bottom: 24px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    max-width: 400px;
+    width: 100%;
+  }
+  .auth-card h1 {
+    font-size: 32px;
+    margin-bottom: 8px;
     color: #1a1a2e;
   }
+  .auth-card .subtitle {
+    color: #888;
+    font-size: 15px;
+    margin-bottom: 32px;
+    line-height: 1.5;
+  }
+  .auth-form { display: flex; flex-direction: column; gap: 12px; }
+  .auth-input {
+    width: 100%; padding: 12px 14px;
+    border: 1px solid #d9d9d9; border-radius: 8px;
+    font-size: 15px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .auth-input:focus { border-color: #4f46e5; }
+  .btn-auth {
+    width: 100%; padding: 12px;
+    border: none; border-radius: 8px;
+    background: #4f46e5; color: #fff;
+    font-size: 15px; cursor: pointer; font-weight: 500;
+    transition: background 0.2s;
+  }
+  .btn-auth:hover { background: #4338ca; }
+  .btn-auth:disabled { opacity: 0.6; cursor: wait; }
+  .auth-hint { font-size: 13px; color: #999; margin-top: 4px; }
+  .auth-card .note {
+    margin-top: 20px;
+    font-size: 12px;
+    color: #bbb;
+  }
+  .auth-card .error-msg {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #dc2626;
+    background: #fef2f2;
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: none;
+  }
 
-  /* 添加区域 */
+  /* ====== App Header ====== */
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .app-header h1 {
+    font-size: 28px;
+    color: #1a1a2e;
+    flex-shrink: 0;
+  }
+  .user-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #666;
+  }
+  .btn-logout {
+    padding: 4px 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    color: #999;
+    transition: all 0.2s;
+  }
+  .btn-logout:hover { border-color: #dc2626; color: #dc2626; }
+  .btn-import {
+    padding: 6px 14px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    color: #4f46e5;
+    transition: all 0.2s;
+  }
+  .btn-import:hover { border-color: #4f46e5; background: #eef2ff; }
+
+  /* ====== Import Modal ====== */
+  .modal { position: fixed; inset: 0; z-index: 300; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+  .modal-content {
+    position: relative; background: #fff; border-radius: 16px;
+    padding: 32px; max-width: 520px; width: 100%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal-content h3 { font-size: 20px; margin-bottom: 12px; }
+  .modal-desc { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 8px; }
+  .modal-desc a { color: #4f46e5; }
+  .code-snippet {
+    background: #f5f5f5; padding: 10px 14px; border-radius: 8px;
+    font-size: 12px; font-family: monospace; overflow-x: auto;
+    margin: 8px 0 16px; user-select: all; border: 1px solid #e8e8e8;
+  }
+  .modal-textarea {
+    width: 100%; min-height: 120px; padding: 10px 12px;
+    border: 1px solid #d9d9d9; border-radius: 8px;
+    font-size: 13px; font-family: monospace; resize: vertical;
+    outline: none; margin-bottom: 16px;
+  }
+  .modal-textarea:focus { border-color: #4f46e5; }
+  .modal-actions { display: flex; gap: 8px; align-items: center; }
+  .btn-import-cancel {
+    padding: 12px 20px; border: 1px solid #d9d9d9; border-radius: 8px;
+    background: #fff; font-size: 14px; cursor: pointer; color: #666;
+    transition: all 0.2s;
+  }
+  .btn-import-cancel:hover { border-color: #dc2626; color: #dc2626; }
+  #importError { margin-top: 12px; }
+
+  /* ====== Existing Styles ====== */
   .add-form {
     display: flex;
     flex-wrap: wrap;
@@ -73,8 +231,24 @@
     transition: background 0.2s;
   }
   .add-form .btn-add:hover { background: #4338ca; }
+  .add-form .btn-add:disabled { opacity: 0.6; cursor: wait; }
 
-  /* 工具栏 */
+  .add-form .desc-section { width: 100%; }
+  .add-form .btn-toggle-desc {
+    background: none; border: none; color: #888;
+    font-size: 13px; cursor: pointer; padding: 4px 0;
+    transition: color 0.2s;
+  }
+  .add-form .btn-toggle-desc:hover { color: #4f46e5; }
+  .add-form .input-desc {
+    width: 100%; padding: 8px 12px;
+    border: 1px solid #d9d9d9; border-radius: 6px;
+    font-size: 14px; outline: none; resize: vertical;
+    font-family: inherit; margin-top: 8px; display: none;
+    transition: border-color 0.2s;
+  }
+  .add-form .input-desc:focus { border-color: #4f46e5; }
+
   .toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -110,7 +284,6 @@
     outline: none;
   }
 
-  /* 待办列表 */
   .todo-list { list-style: none; }
   .todo-item {
     display: flex;
@@ -183,7 +356,6 @@
     color: #666;
   }
   .todo-item .meta .tag.assignee::before { content: "👤 "; }
-  .todo-item .meta .tag.due-date { }
   .todo-item .meta .tag.overdue { background: #fef2f2; color: #dc2626; }
   .todo-item .meta .tag.today { background: #fef9c3; color: #a16207; }
   .todo-item .meta .tag.done-date { background: #f0fdf4; color: #16a34a; }
@@ -237,7 +409,30 @@
   }
   .todo-item .actions .btn-cancel:hover { border-color: #dc2626; color: #dc2626; }
 
-  /* 底部统计 */
+  .todo-item .desc-area { margin-top: 6px; }
+  .todo-item .desc-text {
+    font-size: 13px; color: #666;
+    line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  }
+  .todo-item .desc-text.collapsed {
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .todo-item .btn-expand-desc {
+    background: none; border: none; color: #4f46e5;
+    font-size: 12px; cursor: pointer; padding: 2px 0;
+    display: block; margin-top: 2px;
+  }
+  .todo-item .btn-expand-desc:hover { text-decoration: underline; }
+  .todo-item .edit-desc {
+    width: 100%; padding: 6px 10px;
+    border: 1px solid #d9d9d9; border-radius: 6px;
+    font-size: 13px; outline: none; resize: vertical;
+    font-family: inherit; margin-top: 6px;
+    transition: border-color 0.2s;
+  }
+  .todo-item .edit-desc:focus { border-color: #4f46e5; }
+
   .footer {
     display: flex;
     justify-content: space-between;
@@ -258,7 +453,6 @@
   }
   .footer .btn-clear:hover { background: #fef2f2; border-color: #dc2626; }
 
-  /* 通知状态 */
   .notif-bar {
     display: flex;
     align-items: center;
@@ -302,7 +496,6 @@
     font-weight: 600;
   }
 
-  /* 空状态 */
   .empty {
     text-align: center;
     padding: 48px 16px;
@@ -310,143 +503,647 @@
     font-size: 15px;
   }
 
-  /* 详细描述 */
-  .add-form .desc-section { width: 100%; }
-  .add-form .btn-toggle-desc {
-    background: none; border: none; color: #888;
-    font-size: 13px; cursor: pointer; padding: 4px 0;
-    transition: color 0.2s;
+  /* ====== Data Loading / Error in list ====== */
+  .list-status {
+    text-align: center;
+    padding: 32px 16px;
+    color: #888;
+    font-size: 14px;
   }
-  .add-form .btn-toggle-desc:hover { color: #4f46e5; }
-  .add-form .input-desc {
-    width: 100%; padding: 8px 12px;
-    border: 1px solid #d9d9d9; border-radius: 6px;
-    font-size: 14px; outline: none; resize: vertical;
-    font-family: inherit; margin-top: 8px; display: none;
-    transition: border-color 0.2s;
+  .list-status .spinner { margin: 0 auto 12px; }
+  .list-error {
+    text-align: center;
+    padding: 32px 16px;
   }
-  .add-form .input-desc:focus { border-color: #4f46e5; }
+  .list-error p { color: #dc2626; font-size: 14px; margin-bottom: 12px; }
+  .btn-retry {
+    padding: 8px 20px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    color: #555;
+    transition: all 0.2s;
+  }
+  .btn-retry:hover { border-color: #4f46e5; color: #4f46e5; }
 
-  .todo-item .desc-area { margin-top: 6px; }
-  .todo-item .desc-text {
-    font-size: 13px; color: #666;
-    line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  /* ====== Toast ====== */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a2e;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 200;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 90vw;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
   }
-  .todo-item .desc-text.collapsed {
-    display: -webkit-box; -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical; overflow: hidden;
+  .toast.show { opacity: 1; pointer-events: auto; }
+  .toast .toast-close {
+    background: none; border: none; color: #999;
+    cursor: pointer; font-size: 16px; padding: 0 4px;
+    flex-shrink: 0;
   }
-  .todo-item .btn-expand-desc {
-    background: none; border: none; color: #4f46e5;
-    font-size: 12px; cursor: pointer; padding: 2px 0;
-    display: block; margin-top: 2px;
-  }
-  .todo-item .btn-expand-desc:hover { text-decoration: underline; }
-  .todo-item .edit-desc {
-    width: 100%; padding: 6px 10px;
-    border: 1px solid #d9d9d9; border-radius: 6px;
-    font-size: 13px; outline: none; resize: vertical;
-    font-family: inherit; margin-top: 6px;
-    transition: border-color 0.2s;
-  }
-  .todo-item .edit-desc:focus { border-color: #4f46e5; }
+  .toast .toast-close:hover { color: #fff; }
+  .toast.error { background: #dc2626; }
+  .toast.success { background: #16a34a; }
 
-  /* 响应式 */
   @media (max-width: 500px) {
     body { padding: 16px 8px; }
     .add-form .input-text { flex: 1 1 100%; }
     .todo-item { flex-wrap: wrap; }
     .toolbar .filter-group .filter-btn { font-size: 12px; padding: 4px 10px; }
+    .auth-card { padding: 36px 24px; }
+    .app-header h1 { font-size: 22px; }
   }
 </style>
 </head>
 <body>
-<div class="container">
-  <h1>✅ Todo List</h1>
 
-  <!-- 通知栏 -->
-  <div class="notif-bar" id="notifBar">
-    <span class="notif-dot off" id="notifDot"></span>
-    <span id="notifStatus">浏览器通知已关闭</span>
-    <span class="high-count" id="highCount" style="display:none"></span>
-    <button class="btn-notif" id="btnNotif">开启通知</button>
-  </div>
-
-  <!-- 添加表单 -->
-  <div class="add-form">
-    <input class="input-text" id="inputText" placeholder="输入待办事项..." autofocus>
-    <input class="input-assignee" id="inputAssignee" placeholder="负责人">
-    <input class="input-date" id="inputDate" type="date">
-    <select class="input-priority" id="inputPriority">
-      <option value="medium">中优先级</option>
-      <option value="high">高优先级</option>
-      <option value="low">低优先级</option>
-    </select>
-    <button class="btn-add" id="btnAdd">添加</button>
-    <div class="desc-section">
-      <button class="btn-toggle-desc" id="btnToggleDesc" type="button">＋ 添加详细描述</button>
-      <textarea class="input-desc" id="inputDesc" placeholder="输入详细描述..." rows="3"></textarea>
-    </div>
-  </div>
-
-  <!-- 工具栏 -->
-  <div class="toolbar">
-    <div class="filter-group" id="filterGroup">
-      <button class="filter-btn active" data-filter="all">全部</button>
-      <button class="filter-btn" data-filter="active">进行中</button>
-      <button class="filter-btn" data-filter="completed">已完成</button>
-      <button class="filter-btn" data-filter="overdue">已过期</button>
-      <button class="filter-btn" data-filter="today">今天</button>
-      <button class="filter-btn" data-filter="week">本周</button>
-      <button class="filter-btn" data-filter="month">本月</button>
-    </div>
-    <div class="spacer"></div>
-    <label>负责人</label>
-    <select id="filterAssignee">
-      <option value="">全部</option>
-    </select>
-    <label>排序</label>
-    <select id="sortBy">
-      <option value="created-desc">创建时间 ↓</option>
-      <option value="created-asc">创建时间 ↑</option>
-      <option value="due-asc">截止日期 ↑</option>
-      <option value="due-desc">截止日期 ↓</option>
-      <option value="priority">优先级</option>
-    </select>
-  </div>
-
-  <!-- 待办列表 -->
-  <ul class="todo-list" id="todoList"></ul>
-
-  <!-- 底部 -->
-  <div class="footer">
-    <span id="stats"></span>
-    <button class="btn-clear" id="btnClear">清除已完成</button>
+<!-- Loading Screen -->
+<div id="loadingScreen">
+  <div class="loading-content">
+    <div class="spinner"></div>
+    <p>加载中...</p>
   </div>
 </div>
 
-<script>
-// ====== 数据层 ======
-const STORAGE_KEY = 'todo_list';
+<!-- Auth Screen -->
+<div id="authScreen" style="display:none">
+  <div class="auth-card">
+    <h1>✅ Todo List</h1>
+    <p class="subtitle">登录后即可在不同设备间<br>同步你的待办事项</p>
+    <form id="authForm" class="auth-form">
+      <input class="auth-input" id="authEmail" type="email" placeholder="邮箱地址" required autocomplete="email">
+      <input class="auth-input" id="authPassword" type="password" placeholder="密码（至少 6 位）" required autocomplete="current-password" minlength="6">
+      <button class="btn-auth" id="btnAuth" type="submit">登录 / 注册</button>
+    </form>
+    <p class="auth-hint" id="authHint">首次登录将自动创建账号</p>
+    <p class="note">数据存储在云端，随时随地访问</p>
+    <div class="error-msg" id="authError"></div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app" style="display:none">
+  <div class="container">
+    <div class="app-header">
+      <h1>✅ Todo List</h1>
+      <div class="user-area">
+        <span id="userName"></span>
+        <button class="btn-logout" id="btnLogout">退出</button>
+      </div>
+    </div>
+
+    <div class="notif-bar" id="notifBar">
+      <span class="notif-dot off" id="notifDot"></span>
+      <span id="notifStatus">浏览器通知已关闭</span>
+      <span class="high-count" id="highCount" style="display:none"></span>
+      <button class="btn-notif" id="btnNotif">开启通知</button>
+    </div>
+
+    <div class="add-form">
+      <input class="input-text" id="inputText" placeholder="输入待办事项..." autofocus>
+      <input class="input-assignee" id="inputAssignee" placeholder="负责人">
+      <input class="input-date" id="inputDate" type="date">
+      <select class="input-priority" id="inputPriority">
+        <option value="medium">中优先级</option>
+        <option value="high">高优先级</option>
+        <option value="low">低优先级</option>
+      </select>
+      <button class="btn-add" id="btnAdd">添加</button>
+      <div class="desc-section">
+        <button class="btn-toggle-desc" id="btnToggleDesc" type="button">＋ 添加详细描述</button>
+        <textarea class="input-desc" id="inputDesc" placeholder="输入详细描述..." rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="filter-group" id="filterGroup">
+        <button class="filter-btn active" data-filter="all">全部</button>
+        <button class="filter-btn" data-filter="active">进行中</button>
+        <button class="filter-btn" data-filter="completed">已完成</button>
+        <button class="filter-btn" data-filter="overdue">已过期</button>
+        <button class="filter-btn" data-filter="today">今天</button>
+        <button class="filter-btn" data-filter="week">本周</button>
+        <button class="filter-btn" data-filter="month">本月</button>
+      </div>
+      <div class="spacer"></div>
+      <label>负责人</label>
+      <select id="filterAssignee">
+        <option value="">全部</option>
+      </select>
+      <label>排序</label>
+      <select id="sortBy">
+        <option value="created-desc">创建时间 ↓</option>
+        <option value="created-asc">创建时间 ↑</option>
+        <option value="due-asc">截止日期 ↑</option>
+        <option value="due-desc">截止日期 ↓</option>
+        <option value="priority">优先级</option>
+      </select>
+    </div>
+
+    <ul class="todo-list" id="todoList"></ul>
+
+    <div class="footer">
+      <span id="stats"></span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-import" id="btnImport">📥 导入旧数据</button>
+        <button class="btn-clear" id="btnClear">清除已完成</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal" id="importModal" style="display:none">
+  <div class="modal-overlay" id="importOverlay"></div>
+  <div class="modal-content">
+    <h3>📥 导入旧数据</h3>
+    <p class="modal-desc">在新标签页打开 <a href="https://biostatcn.github.io/todo-app/" target="_blank">旧版页面</a>，按 F12 打开控制台，粘贴以下命令：</p>
+    <pre class="code-snippet">copy(JSON.stringify(JSON.parse(localStorage.getItem('todo_list'))))</pre>
+    <p class="modal-desc">然后回到这里，把复制的内容粘贴到下方输入框：</p>
+    <textarea class="modal-textarea" id="importInput" placeholder="在此粘贴 JSON 数据..."></textarea>
+    <div class="modal-actions">
+      <button class="btn-auth" id="btnImportConfirm" style="flex:1">导入</button>
+      <button class="btn-import-cancel" id="btnImportCancel">取消</button>
+    </div>
+    <div class="error-msg" id="importError"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// ============================
+// 1. 配置 — 部署前需替换
+// ============================
+const SUPABASE_URL = 'https://rgizejvgtvlzosnuuhcg.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_w69rav1xH6v_Ke0hBo6Zhg_64btTaY8';
+
+// ============================
+// 2. Supabase 客户端
+// ============================
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
+
+// ============================
+// 3. 应用状态
+// ============================
+let currentUser = null;
 let todos = [];
 let currentFilter = 'all';
 let currentAssignee = '';
 let currentSort = 'created-desc';
 let editingId = null;
+let isMutating = false;
 
-function loadData() {
+const STORAGE_KEY = 'todo_list'; // 旧版 localStorage key，用于迁移
+const NOTIF_DAILY_KEY = 'todo_notif_last_date';
+
+// ============================
+// 4. UI 辅助
+// ============================
+function $(id) { return document.getElementById(id); }
+
+function showToast(msg, type) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + (type || '') + ' show';
+  clearTimeout(el._hide);
+  el._hide = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function showError(msg) { showToast(msg, 'error'); }
+function showSuccess(msg) { showToast(msg, 'success'); }
+
+// ============================
+// 5. 授权管理
+// ============================
+async function initAuth() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      currentUser = session.user;
+      $('app').style.display = '';
+      $('authScreen').style.display = 'none';
+      $('loadingScreen').style.display = 'none';
+      updateUserUI();
+      await loadTodos();
+    } else {
+      $('loadingScreen').style.display = 'none';
+      $('authScreen').style.display = '';
+    }
+  } catch (err) {
+    console.error('Auth init failed:', err);
+    $('loadingScreen').style.display = 'none';
+    $('authScreen').style.display = '';
+  }
+
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session?.user) {
+      currentUser = session.user;
+      $('authScreen').style.display = 'none';
+      $('app').style.display = '';
+      updateUserUI();
+      await loadTodos();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      todos = [];
+      $('app').style.display = 'none';
+      $('authScreen').style.display = '';
+      render();
+    }
+  });
+}
+
+function updateUserUI() {
+  if (currentUser) {
+    $('userName').textContent = currentUser.email || '';
+  }
+}
+
+async function loginWithEmail(email, password) {
+  const btn = $('btnAuth');
+  btn.disabled = true;
+  btn.textContent = '登录中...';
+  $('authError').style.display = 'none';
+  $('authHint').textContent = '';
+
+  try {
+    // 先尝试注册（如果用户已存在，Supabase 会返回特定结果）
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+
+    if (signUpError) {
+      // 注册失败 → 用户已存在，尝试登录
+      if (signUpError.message?.includes('already') || signUpError.status === 400) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          if (signInError.message?.includes('Invalid login credentials')) {
+            $('authError').textContent = '密码错误，请重试';
+          } else if (signInError.message?.includes('Email not confirmed')) {
+            $('authError').textContent = '请先检查邮箱中的确认链接';
+          } else {
+            $('authError').textContent = '登录失败: ' + signInError.message;
+          }
+          $('authError').style.display = '';
+        } else {
+          return; // 登录成功 — onAuthStateChange 会自动处理
+        }
+      } else {
+        $('authError').textContent = '注册失败: ' + signUpError.message;
+        $('authError').style.display = '';
+      }
+    } else {
+      // 注册成功
+      if (signUpData?.user?.identities?.length === 0) {
+        // 用户已存在（某些 Supabase 版本返回空 identities）
+        $('authHint').textContent = '检测到已有账号，正在登录...';
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          $('authError').textContent = '登录失败: ' + signInError.message;
+          $('authError').style.display = '';
+        } else {
+          return;
+        }
+      } else if (signUpData?.user?.confirmation_sent_at) {
+        $('authHint').textContent = '✅ 注册成功！请检查邮箱中的确认链接';
+      } else {
+        // 自动确认模式 — onAuthStateChange 会处理
+        $('authHint').textContent = '✅ 注册成功，正在登录...';
+        return;
+      }
+    }
+  } catch (err) {
+    $('authError').textContent = '操作失败: ' + err.message;
+    $('authError').style.display = '';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '登录 / 注册';
+}
+
+async function logout() {
+  await supabase.auth.signOut();
+}
+
+// ============================
+// 6. 数据层
+// ============================
+function showListLoading() {
+  $('todoList').innerHTML = '<div class="list-status"><div class="spinner"></div><p>加载中...</p></div>';
+}
+
+function showListError(msg) {
+  $('todoList').innerHTML = `<div class="list-error"><p>${escapeHtml(msg)}</p><button class="btn-retry" id="btnRetry">重试</button></div>`;
+  $('btnRetry')?.addEventListener('click', () => loadTodos());
+}
+
+async function migrateLocalData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    todos = raw ? JSON.parse(raw) : [];
-  } catch { todos = []; }
+    if (!raw) return false;
+    const localTodos = JSON.parse(raw);
+    if (!Array.isArray(localTodos) || localTodos.length === 0) return false;
+
+    // 仅当云端没有数据时迁移
+    const { count, error } = await supabase
+      .from('todos')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', currentUser.id);
+
+    if (error) throw error;
+    if (count && count > 0) return false;
+
+    // 批量上传本地数据
+    const rows = localTodos.map(t => ({
+      id: t.id,
+      user_id: currentUser.id,
+      text: t.text,
+      description: t.description || '',
+      completed: t.completed || false,
+      created_at: t.createdAt || new Date().toISOString(),
+      due_date: t.dueDate || null,
+      assignee: t.assignee || '',
+      priority: t.priority || 'medium'
+    }));
+
+    const { error: insertError } = await supabase.from('todos').insert(rows);
+    if (insertError) throw insertError;
+
+    localStorage.removeItem(STORAGE_KEY);
+    return true;
+  } catch (err) {
+    console.warn('Local data migration failed:', err);
+    return false;
+  }
 }
 
-function saveData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+async function loadTodos() {
+  if (!currentUser) return;
+  showListLoading();
+
+  try {
+    // 尝试迁移本地数据
+    await migrateLocalData();
+
+    const { data, error } = await supabase
+      .from('todos')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // 将 Supabase 字段映射回原格式
+    todos = (data || []).map(t => ({
+      id: t.id,
+      text: t.text,
+      description: t.description || '',
+      completed: t.completed || false,
+      createdAt: t.created_at,
+      dueDate: t.due_date || null,
+      assignee: t.assignee || '',
+      priority: t.priority || 'medium'
+    }));
+
+    render();
+  } catch (err) {
+    console.error('Load todos failed:', err);
+    showListError('数据加载失败: ' + err.message);
+  }
 }
 
-function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+async function addTodo(text, assignee, dueDate, priority, description) {
+  if (!text.trim() || !currentUser || isMutating) return;
+  isMutating = true;
+
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const now = new Date().toISOString();
+
+  try {
+    const { error } = await supabase.from('todos').insert({
+      id,
+      user_id: currentUser.id,
+      text: text.trim(),
+      description: description ? description.trim() : '',
+      completed: false,
+      created_at: now,
+      due_date: dueDate || null,
+      assignee: assignee.trim() || '',
+      priority: priority || 'medium'
+    });
+
+    if (error) throw error;
+
+    // 立即更新本地列表
+    todos.unshift({
+      id,
+      text: text.trim(),
+      description: description ? description.trim() : '',
+      completed: false,
+      createdAt: now,
+      dueDate: dueDate || null,
+      assignee: assignee.trim() || '',
+      priority: priority || 'medium'
+    });
+
+    render();
+    updateNotifBar();
+
+    if (('Notification' in window) && Notification.permission === 'granted' && (priority === 'high')) {
+      showNotif('📌 新增高优先级待办', text.trim(), 'new-high');
+    }
+  } catch (err) {
+    console.error('Add todo failed:', err);
+    showError('添加失败: ' + err.message);
+    await loadTodos();
+  } finally {
+    isMutating = false;
+  }
+}
+
+async function toggleTodo(id) {
+  const todo = todos.find(t => t.id === id);
+  if (!todo || !currentUser || isMutating) return;
+  isMutating = true;
+
+  const newCompleted = !todo.completed;
+
+  try {
+    const { error } = await supabase
+      .from('todos')
+      .update({ completed: newCompleted })
+      .eq('id', id)
+      .eq('user_id', currentUser.id);
+
+    if (error) throw error;
+
+    todo.completed = newCompleted;
+    render();
+  } catch (err) {
+    console.error('Toggle todo failed:', err);
+    showError('更新失败: ' + err.message);
+  } finally {
+    isMutating = false;
+  }
+}
+
+async function deleteTodo(id) {
+  if (!currentUser || isMutating) return;
+  isMutating = true;
+
+  const idx = todos.findIndex(t => t.id === id);
+
+  try {
+    const { error } = await supabase
+      .from('todos')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', currentUser.id);
+
+    if (error) throw error;
+
+    if (idx !== -1) todos.splice(idx, 1);
+    render();
+    updateNotifBar();
+  } catch (err) {
+    console.error('Delete todo failed:', err);
+    showError('删除失败: ' + err.message);
+    await loadTodos();
+  } finally {
+    isMutating = false;
+  }
+}
+
+async function saveEdit(id, newText, newDesc) {
+  if (!currentUser || isMutating) return;
+  isMutating = true;
+
+  try {
+    const { error } = await supabase
+      .from('todos')
+      .update({ text: newText.trim(), description: (newDesc || '').trim() })
+      .eq('id', id)
+      .eq('user_id', currentUser.id);
+
+    if (error) throw error;
+
+    const todo = todos.find(t => t.id === id);
+    if (todo) {
+      todo.text = newText.trim();
+      todo.description = (newDesc || '').trim();
+    }
+    editingId = null;
+    render();
+  } catch (err) {
+    console.error('Save edit failed:', err);
+    showError('保存失败: ' + err.message);
+    editingId = null;
+    await loadTodos();
+  } finally {
+    isMutating = false;
+  }
+}
+
+async function clearCompleted() {
+  if (!currentUser || isMutating) return;
+  isMutating = true;
+
+  const completedIds = todos.filter(t => t.completed).map(t => t.id);
+  if (completedIds.length === 0) { isMutating = false; return; }
+
+  try {
+    const { error } = await supabase
+      .from('todos')
+      .delete()
+      .in('id', completedIds)
+      .eq('user_id', currentUser.id);
+
+    if (error) throw error;
+
+    todos = todos.filter(t => !t.completed);
+    render();
+  } catch (err) {
+    console.error('Clear completed failed:', err);
+    showError('清除失败: ' + err.message);
+    await loadTodos();
+  } finally {
+    isMutating = false;
+  }
+}
+
+// ============================
+// 7. 筛选与排序
+// ============================
+function getFilteredTodos() {
+  let list = [...todos];
+
+  const today = getToday();
+  const [weekStart, weekEnd] = getWeekRange();
+  const [monthStart, monthEnd] = getMonthRange();
+
+  switch (currentFilter) {
+    case 'active': list = list.filter(t => !t.completed); break;
+    case 'completed': list = list.filter(t => t.completed); break;
+    case 'overdue': list = list.filter(t => !t.completed && t.dueDate && t.dueDate < today); break;
+    case 'today': list = list.filter(t => t.dueDate === today); break;
+    case 'week': list = list.filter(t => t.dueDate && t.dueDate >= weekStart && t.dueDate <= weekEnd); break;
+    case 'month': list = list.filter(t => t.dueDate && t.dueDate >= monthStart && t.dueDate <= monthEnd); break;
+    default: break;
+  }
+
+  if (currentAssignee) {
+    list = list.filter(t => t.assignee === currentAssignee);
+  }
+
+  const priorityWeight = { high: 0, medium: 1, low: 2 };
+  switch (currentSort) {
+    case 'created-asc': list.sort((a, b) => a.createdAt.localeCompare(b.createdAt)); break;
+    case 'created-desc': list.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); break;
+    case 'due-asc':
+      list.sort((a, b) => {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1; if (!b.dueDate) return -1;
+        return a.dueDate.localeCompare(b.dueDate);
+      });
+      break;
+    case 'due-desc':
+      list.sort((a, b) => {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1; if (!b.dueDate) return -1;
+        return b.dueDate.localeCompare(a.dueDate);
+      });
+      break;
+    case 'priority': list.sort((a, b) => priorityWeight[a.priority] - priorityWeight[b.priority]); break;
+    default: break;
+  }
+
+  return list;
+}
+
+function getAssigneeList() {
+  const set = new Set();
+  todos.forEach(t => { if (t.assignee) set.add(t.assignee); });
+  return [...set].sort();
 }
 
 function getToday() {
@@ -456,11 +1153,9 @@ function getToday() {
 function getWeekRange() {
   const now = new Date();
   const day = now.getDay();
-  const diff = day === 0 ? 6 : day - 1; // 周一为一周开始
-  const mon = new Date(now);
-  mon.setDate(now.getDate() - diff);
-  const sun = new Date(mon);
-  sun.setDate(mon.getDate() + 6);
+  const diff = day === 0 ? 6 : day - 1;
+  const mon = new Date(now); mon.setDate(now.getDate() - diff);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
   return [mon.toISOString().slice(0, 10), sun.toISOString().slice(0, 10)];
 }
 
@@ -471,129 +1166,22 @@ function getMonthRange() {
   return [first.toISOString().slice(0, 10), last.toISOString().slice(0, 10)];
 }
 
-// ====== 业务逻辑 ======
-function addTodo(text, assignee, dueDate, priority, description) {
-  if (!text.trim()) return;
-  todos.unshift({
-    id: generateId(),
-    text: text.trim(),
-    description: description ? description.trim() : '',
-    completed: false,
-    createdAt: new Date().toISOString(),
-    dueDate: dueDate || null,
-    assignee: assignee.trim() || '',
-    priority: priority || 'medium'
-  });
-  saveData();
-  render();
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
-function deleteTodo(id) {
-  todos = todos.filter(t => t.id !== id);
-  saveData();
-  render();
-}
-
-function toggleTodo(id) {
-  const todo = todos.find(t => t.id === id);
-  if (todo) {
-    todo.completed = !todo.completed;
-    saveData();
-    render();
-  }
-}
-
-function clearCompleted() {
-  todos = todos.filter(t => !t.completed);
-  saveData();
-  render();
-}
-
-// 获取所有负责人列表
-function getAssigneeList() {
-  const set = new Set();
-  todos.forEach(t => { if (t.assignee) set.add(t.assignee); });
-  return [...set].sort();
-}
-
-// ====== 筛选与排序 ======
-function getFilteredTodos() {
-  let list = [...todos];
-
-  // 筛选
-  const today = getToday();
-  const [weekStart, weekEnd] = getWeekRange();
-  const [monthStart, monthEnd] = getMonthRange();
-
-  switch (currentFilter) {
-    case 'active':
-      list = list.filter(t => !t.completed);
-      break;
-    case 'completed':
-      list = list.filter(t => t.completed);
-      break;
-    case 'overdue':
-      list = list.filter(t => !t.completed && t.dueDate && t.dueDate < today);
-      break;
-    case 'today':
-      list = list.filter(t => t.dueDate === today);
-      break;
-    case 'week':
-      list = list.filter(t => t.dueDate && t.dueDate >= weekStart && t.dueDate <= weekEnd);
-      break;
-    case 'month':
-      list = list.filter(t => t.dueDate && t.dueDate >= monthStart && t.dueDate <= monthEnd);
-      break;
-    default: break;
-  }
-
-  // 按负责人筛选
-  if (currentAssignee) {
-    list = list.filter(t => t.assignee === currentAssignee);
-  }
-
-  // 排序
-  const priorityWeight = { high: 0, medium: 1, low: 2 };
-  switch (currentSort) {
-    case 'created-asc':
-      list.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-      break;
-    case 'created-desc':
-      list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      break;
-    case 'due-asc':
-      list.sort((a, b) => {
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return a.dueDate.localeCompare(b.dueDate);
-      });
-      break;
-    case 'due-desc':
-      list.sort((a, b) => {
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return b.dueDate.localeCompare(a.dueDate);
-      });
-      break;
-    case 'priority':
-      list.sort((a, b) => priorityWeight[a.priority] - priorityWeight[b.priority]);
-      break;
-    default: break;
-  }
-
-  return list;
-}
-
-// ====== 视图渲染 ======
+// ============================
+// 8. 渲染
+// ============================
 function render() {
   const list = getFilteredTodos();
-  const todoListEl = document.getElementById('todoList');
+  const todoListEl = $('todoList');
   const today = getToday();
 
   // 更新负责人下拉
-  const assigneeSelect = document.getElementById('filterAssignee');
+  const assigneeSelect = $('filterAssignee');
   const assignees = getAssigneeList();
   const currentVal = assigneeSelect.value;
   assigneeSelect.innerHTML = '<option value="">全部</option>' +
@@ -612,7 +1200,6 @@ function render() {
       const textClass = todo.completed ? 'text done' : 'text';
       const checkedClass = todo.completed ? 'checkbox checked' : 'checkbox';
 
-      // 日期显示
       let dateTag = '';
       if (todo.dueDate) {
         const d = new Date(todo.dueDate + 'T00:00:00');
@@ -623,19 +1210,15 @@ function render() {
         else if (isToday) cls += ' today';
         dateTag = `<span class="${cls}">📅 ${display}</span>`;
       } else {
-        dateTag = `<span class="tag due-date" style="color:#bbb;">📅 无截止</span>`;
+        dateTag = '<span class="tag due-date" style="color:#bbb;">📅 无截止</span>';
       }
 
-      // 负责人标签
       const assigneeTag = todo.assignee
-        ? `<span class="tag assignee">${todo.assignee}</span>`
-        : '';
+        ? `<span class="tag assignee">${todo.assignee}</span>` : '';
 
-      // 优先级标签
       const priorityLabel = { high: '高', medium: '中', low: '低' };
       const priorityTag = `<span class="tag priority-${todo.priority}">${priorityLabel[todo.priority]}优先级</span>`;
 
-      // 文本或编辑框
       let bodyHtml;
       if (isEditing) {
         bodyHtml = `<input class="edit-input" type="text" value="${escapeHtml(todo.text)}" data-id="${todo.id}">
@@ -668,33 +1251,35 @@ function render() {
     }).join('');
   }
 
-  // 统计
   const total = todos.length;
   const active = todos.filter(t => !t.completed).length;
-  document.getElementById('stats').textContent = `共 ${total} 项，${active} 项未完成`;
-  document.getElementById('btnClear').style.display = total > 0 ? '' : 'none';
+  $('stats').textContent = `共 ${total} 项，${active} 项未完成`;
+  $('btnClear').style.display = total > 0 ? '' : 'none';
 
-  // 更新筛选按钮状态
   document.querySelectorAll('#filterGroup .filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === currentFilter);
   });
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
+// ============================
+// 9. 事件绑定
+// ============================
+$('authForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const email = $('authEmail').value.trim();
+  const password = $('authPassword').value;
+  if (email && password) loginWithEmail(email, password);
+});
 
-// ====== 事件绑定 ======
-// 添加待办
+$('btnLogout').addEventListener('click', logout);
+
 function handleAdd() {
-  const text = document.getElementById('inputText');
-  const assignee = document.getElementById('inputAssignee');
-  const date = document.getElementById('inputDate');
-  const priority = document.getElementById('inputPriority');
-  const desc = document.getElementById('inputDesc');
-  const btnDesc = document.getElementById('btnToggleDesc');
+  const text = $('inputText');
+  const assignee = $('inputAssignee');
+  const date = $('inputDate');
+  const priority = $('inputPriority');
+  const desc = $('inputDesc');
+  const btnDesc = $('btnToggleDesc');
   addTodo(text.value, assignee.value, date.value, priority.value, desc.value);
   text.value = '';
   date.value = '';
@@ -704,46 +1289,104 @@ function handleAdd() {
   text.focus();
 }
 
-document.getElementById('btnAdd').addEventListener('click', handleAdd);
-document.getElementById('inputText').addEventListener('keydown', e => {
+$('btnAdd').addEventListener('click', handleAdd);
+$('inputText').addEventListener('keydown', e => {
   if (e.key === 'Enter') handleAdd();
 });
 
-// 详细描述展开/收起
-document.getElementById('btnToggleDesc').addEventListener('click', () => {
-  const desc = document.getElementById('inputDesc');
-  const btn = document.getElementById('btnToggleDesc');
+$('btnToggleDesc').addEventListener('click', () => {
+  const desc = $('inputDesc');
+  const btn = $('btnToggleDesc');
   const isHidden = desc.style.display === 'none' || desc.style.display === '';
   desc.style.display = isHidden ? 'block' : 'none';
   btn.textContent = isHidden ? '－ 收起详细描述' : '＋ 添加详细描述';
   if (isHidden) setTimeout(() => desc.focus(), 100);
 });
 
-// 筛选按钮
-document.getElementById('filterGroup').addEventListener('click', e => {
+$('filterGroup').addEventListener('click', e => {
   const btn = e.target.closest('.filter-btn');
   if (!btn) return;
   currentFilter = btn.dataset.filter;
   render();
 });
 
-// 负责人筛选
-document.getElementById('filterAssignee').addEventListener('change', e => {
+$('filterAssignee').addEventListener('change', e => {
   currentAssignee = e.target.value;
   render();
 });
 
-// 排序
-document.getElementById('sortBy').addEventListener('change', e => {
+$('sortBy').addEventListener('change', e => {
   currentSort = e.target.value;
   render();
 });
 
-// 清除已完成
-document.getElementById('btnClear').addEventListener('click', clearCompleted);
+$('btnClear').addEventListener('click', clearCompleted);
 
-// 列表事件代理（toggle, delete, edit, edit提交）
-document.getElementById('todoList').addEventListener('click', e => {
+// 导入旧数据
+$('btnImport').addEventListener('click', () => {
+  $('importModal').style.display = '';
+  $('importInput').value = '';
+  $('importError').style.display = 'none';
+  $('btnImportConfirm').disabled = false;
+  $('btnImportConfirm').textContent = '导入';
+});
+
+$('importOverlay').addEventListener('click', () => {
+  $('importModal').style.display = 'none';
+});
+
+$('btnImportCancel').addEventListener('click', () => {
+  $('importModal').style.display = 'none';
+});
+
+$('btnImportConfirm').addEventListener('click', async () => {
+  const raw = $('importInput').value.trim();
+  if (!raw) { $('importError').textContent = '请先粘贴数据'; $('importError').style.display = ''; return; }
+
+  let items;
+  try { items = JSON.parse(raw); } catch {
+    $('importError').textContent = '数据格式错误，请确认复制了完整的 JSON'; $('importError').style.display = '';
+    return;
+  }
+  if (!Array.isArray(items) || items.length === 0) {
+    $('importError').textContent = '没有找到有效的待办数据'; $('importError').style.display = '';
+    return;
+  }
+
+  const btn = $('btnImportConfirm');
+  btn.disabled = true;
+  btn.textContent = '导入中...';
+  $('importError').style.display = 'none';
+
+  try {
+    // 映射旧版数据到 Supabase 格式
+    const rows = items.map(t => ({
+      id: t.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      user_id: currentUser.id,
+      text: t.text || '',
+      description: t.description || '',
+      completed: t.completed || false,
+      created_at: t.createdAt || new Date().toISOString(),
+      due_date: t.dueDate || null,
+      assignee: t.assignee || '',
+      priority: t.priority || 'medium'
+    }));
+
+    const { error } = await supabase.from('todos').insert(rows);
+    if (error) throw error;
+
+    showSuccess(`成功导入 ${rows.length} 条待办`);
+    $('importModal').style.display = 'none';
+    await loadTodos();
+  } catch (err) {
+    $('importError').textContent = '导入失败: ' + err.message;
+    $('importError').style.display = '';
+  }
+  btn.disabled = false;
+  btn.textContent = '导入';
+});
+
+$('todoList').addEventListener('click', e => {
   const item = e.target.closest('.todo-item');
   if (!item) return;
   const id = item.dataset.id;
@@ -756,20 +1399,14 @@ document.getElementById('todoList').addEventListener('click', e => {
   } else if (action === 'edit') {
     editingId = id;
     render();
-    // 自动聚焦和选中
     const input = item.querySelector('.edit-input');
     if (input) { input.focus(); input.select(); }
   } else if (action === 'save') {
-    const todo = todos.find(t => t.id === id);
-    if (todo) {
-      const titleInput = item.querySelector('.edit-input');
-      const descEl = item.querySelector('.edit-desc');
-      if (titleInput && titleInput.value.trim()) todo.text = titleInput.value.trim();
-      if (descEl) todo.description = descEl.value.trim();
-      saveData();
+    const titleInput = item.querySelector('.edit-input');
+    const descEl = item.querySelector('.edit-desc');
+    if (titleInput && titleInput.value.trim()) {
+      saveEdit(id, titleInput.value, descEl?.value || '');
     }
-    editingId = null;
-    render();
   } else if (action === 'cancel') {
     editingId = null;
     render();
@@ -785,28 +1422,22 @@ document.getElementById('todoList').addEventListener('click', e => {
   }
 });
 
-// 编辑提交（回车保存，Escape取消）
-document.getElementById('todoList').addEventListener('keydown', e => {
+$('todoList').addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.classList.contains('edit-input')) {
     const id = e.target.dataset.id;
-    const todo = todos.find(t => t.id === id);
-    if (todo && e.target.value.trim()) {
-      todo.text = e.target.value.trim();
-      const descEl = document.querySelector(`.todo-item[data-id="${id}"] .edit-desc`);
-      if (descEl) todo.description = descEl.value.trim();
-      saveData();
+    const descEl = document.querySelector(`.todo-item[data-id="${id}"] .edit-desc`);
+    if (e.target.value.trim()) {
+      saveEdit(id, e.target.value, descEl?.value || '');
     }
-    editingId = null;
-    render();
   } else if (e.key === 'Escape' && e.target.classList.contains('edit-input')) {
     editingId = null;
     render();
   }
 });
 
-// ====== 浏览器通知 ======
-const NOTIF_DAILY_KEY = 'todo_notif_last_date';
-
+// ============================
+// 10. 浏览器通知
+// ============================
 function getNotifPermission() {
   return Notification.permission;
 }
@@ -824,7 +1455,7 @@ function showNotif(title, body, tag) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   try {
     new Notification(title, { body, tag, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">✅</text></svg>' });
-  } catch { /* fallback: some old browsers */ }
+  } catch { /* fallback */ }
 }
 
 function getHighPriorityActive() {
@@ -833,24 +1464,18 @@ function getHighPriorityActive() {
 
 function checkDailyReminder() {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
   const today = getToday();
   const lastDate = localStorage.getItem(NOTIF_DAILY_KEY);
-  if (lastDate === today) return; // 今天已经提醒过了
+  if (lastDate === today) return;
 
   const highTodos = getHighPriorityActive();
   if (highTodos.length === 0) return;
 
-  // 标记今天已提醒
   localStorage.setItem(NOTIF_DAILY_KEY, today);
-
-  // 发送通知
   const title = `📌 ${highTodos.length} 项高优先级待办`;
   const body = highTodos.slice(0, 5).map(t => `• ${t.text}${t.dueDate ? ' (' + t.dueDate.slice(5) + '截止)' : ''}`).join('\n');
   const suffix = highTodos.length > 5 ? `\n...及其他 ${highTodos.length - 5} 项` : '';
   showNotif(title, body + suffix, 'daily-high-priority');
-
-  // 更新UI提醒
   updateNotifBar();
 }
 
@@ -866,15 +1491,14 @@ function checkOverdueReminder() {
 }
 
 function updateNotifBar() {
-  const dot = document.getElementById('notifDot');
-  const status = document.getElementById('notifStatus');
-  const btn = document.getElementById('btnNotif');
-  const count = document.getElementById('highCount');
+  const dot = $('notifDot');
+  const status = $('notifStatus');
+  const btn = $('btnNotif');
+  const count = $('highCount');
 
   const perm = !('Notification' in window) ? 'denied' : Notification.permission;
   const highTodos = getHighPriorityActive();
 
-  // 高优先级数量
   if (highTodos.length > 0) {
     count.textContent = `高优先级 ${highTodos.length}`;
     count.style.display = '';
@@ -886,31 +1510,23 @@ function updateNotifBar() {
     dot.className = 'notif-dot on';
     status.textContent = `通知已开启${highTodos.length > 0 ? ` · ${highTodos.length} 项高优先级待办` : ''}`;
     btn.textContent = '测试提醒';
-    btn.style.display = '';
   } else if (perm === 'denied') {
     dot.className = 'notif-dot denied';
     status.textContent = '通知已被浏览器拒绝，请在浏览器设置中开启';
     btn.textContent = '重新开启';
-    btn.style.display = '';
   } else {
     dot.className = 'notif-dot off';
     status.textContent = '浏览器通知未开启';
     btn.textContent = '开启通知';
-    btn.style.display = '';
   }
 }
 
 async function handleNotifButton() {
   const perm = !('Notification' in window) ? 'denied' : Notification.permission;
   if (perm === 'granted') {
-    // 手动测试 - 显示当前高优先级任务
     const highTodos = getHighPriorityActive();
     if (highTodos.length > 0) {
-      showNotif(
-        `📌 ${highTodos.length} 项高优先级待办`,
-        highTodos.slice(0, 5).map(t => `• ${t.text}${t.dueDate ? ' (' + t.dueDate.slice(5) + '截止)' : ''}`).join('\n'),
-        'manual-check'
-      );
+      showNotif('📌 高优先级待办', highTodos.slice(0, 5).map(t => `• ${t.text}${t.dueDate ? ' (' + t.dueDate.slice(5) + '截止)' : ''}`).join('\n'), 'manual-check');
     } else {
       showNotif('✅ 暂无高优先级待办', '继续保持！', 'manual-check-empty');
     }
@@ -924,25 +1540,17 @@ async function handleNotifButton() {
   }
 }
 
-// ====== 启动 ======
-loadData();
-render();
-updateNotifBar();
-checkDailyReminder();
-setTimeout(checkOverdueReminder, 1000); // 延迟1秒，避免与每日提醒冲突
+$('btnNotif').addEventListener('click', handleNotifButton);
 
-// 通知按钮
-document.getElementById('btnNotif').addEventListener('click', handleNotifButton);
+// ============================
+// 11. 启动
+// ============================
+initAuth();
 
-// 添加新待办后，如果是高优先级且通知已开启，立即提醒
-const _origAddTodo = addTodo;
-addTodo = function(text, assignee, dueDate, priority, description) {
-  _origAddTodo(text, assignee, dueDate, priority, description);
-  if (('Notification' in window) && Notification.permission === 'granted') {
-    showNotif('📌 新增高优先级待办', text, 'new-high');
-  }
-  updateNotifBar();
-};
+// 每 30 秒刷新高优先级计数（后台新数据同步提示）
+setInterval(() => {
+  if (currentUser) updateNotifBar();
+}, 30000);
 </script>
 </body>
 </html>
