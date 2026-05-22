@@ -21,28 +21,6 @@
     max-width: 700px;
   }
 
-  /* ====== Loading Screen ====== */
-  #loadingScreen {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f0f2f5;
-    z-index: 100;
-  }
-  .loading-content { text-align: center; }
-  .spinner {
-    width: 36px; height: 36px;
-    border: 3px solid #e0e0e0;
-    border-top-color: #4f46e5;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    margin: 0 auto 16px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-content p { color: #888; font-size: 14px; }
-
   /* ====== Auth Screen ====== */
   #authScreen {
     position: fixed;
@@ -571,16 +549,8 @@
 </head>
 <body>
 
-<!-- Loading Screen -->
-<div id="loadingScreen">
-  <div class="loading-content">
-    <div class="spinner"></div>
-    <p>加载中...</p>
-  </div>
-</div>
-
-<!-- Auth Screen -->
-<div id="authScreen" style="display:none">
+<!-- Auth Screen（默认显示，无需等待） -->
+<div id="authScreen">
   <div class="auth-card">
     <h1>✅ Todo List</h1>
     <p class="subtitle">登录后即可在不同设备间<br>同步你的待办事项</p>
@@ -714,9 +684,8 @@ let currentFilter = 'all';
 let currentAssignee = '';
 let currentSort = 'created-desc';
 let editingId = null;
-let isMutating = false;
 
-const STORAGE_KEY = 'todo_list'; // 旧版 localStorage key，用于迁移
+const STORAGE_KEY = 'todo_list';
 const NOTIF_DAILY_KEY = 'todo_notif_last_date';
 
 // ============================
@@ -739,23 +708,18 @@ function showSuccess(msg) { showToast(msg, 'success'); }
 // 5. 授权管理
 // ============================
 async function initAuth() {
+  // authScreen 默认可见，无需等待
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
       currentUser = session.user;
       $('app').style.display = '';
       $('authScreen').style.display = 'none';
-      $('loadingScreen').style.display = 'none';
       updateUserUI();
-      await loadTodos();
-    } else {
-      $('loadingScreen').style.display = 'none';
-      $('authScreen').style.display = '';
+      loadTodos(); // 不 await，让页面先渲染
     }
   } catch (err) {
     console.error('Auth init failed:', err);
-    $('loadingScreen').style.display = 'none';
-    $('authScreen').style.display = '';
   }
 
   supabase.auth.onAuthStateChange(async (event, session) => {
@@ -768,8 +732,10 @@ async function initAuth() {
     } else if (event === 'SIGNED_OUT') {
       currentUser = null;
       todos = [];
+      editingId = null;
       $('app').style.display = 'none';
       $('authScreen').style.display = '';
+      $('filterAssignee').innerHTML = '<option value="">全部</option>';
       render();
     }
   });
@@ -933,8 +899,7 @@ async function loadTodos() {
 }
 
 async function addTodo(text, assignee, dueDate, priority, description) {
-  if (!text.trim() || !currentUser || isMutating) return;
-  isMutating = true;
+  if (!text.trim() || !currentUser) return;
 
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const now = new Date().toISOString();
@@ -976,15 +941,12 @@ async function addTodo(text, assignee, dueDate, priority, description) {
     console.error('Add todo failed:', err);
     showError('添加失败: ' + err.message);
     await loadTodos();
-  } finally {
-    isMutating = false;
   }
 }
 
 async function toggleTodo(id) {
   const todo = todos.find(t => t.id === id);
-  if (!todo || !currentUser || isMutating) return;
-  isMutating = true;
+  if (!todo || !currentUser) return;
 
   const newCompleted = !todo.completed;
 
@@ -1002,14 +964,11 @@ async function toggleTodo(id) {
   } catch (err) {
     console.error('Toggle todo failed:', err);
     showError('更新失败: ' + err.message);
-  } finally {
-    isMutating = false;
   }
 }
 
 async function deleteTodo(id) {
-  if (!currentUser || isMutating) return;
-  isMutating = true;
+  if (!currentUser) return;
 
   const idx = todos.findIndex(t => t.id === id);
 
@@ -1029,14 +988,11 @@ async function deleteTodo(id) {
     console.error('Delete todo failed:', err);
     showError('删除失败: ' + err.message);
     await loadTodos();
-  } finally {
-    isMutating = false;
   }
 }
 
 async function saveEdit(id, newText, newDesc) {
-  if (!currentUser || isMutating) return;
-  isMutating = true;
+  if (!currentUser) return;
 
   try {
     const { error } = await supabase
@@ -1059,17 +1015,14 @@ async function saveEdit(id, newText, newDesc) {
     showError('保存失败: ' + err.message);
     editingId = null;
     await loadTodos();
-  } finally {
-    isMutating = false;
   }
 }
 
 async function clearCompleted() {
-  if (!currentUser || isMutating) return;
-  isMutating = true;
+  if (!currentUser) return;
 
   const completedIds = todos.filter(t => t.completed).map(t => t.id);
-  if (completedIds.length === 0) { isMutating = false; return; }
+  if (completedIds.length === 0) { return; }
 
   try {
     const { error } = await supabase
@@ -1086,8 +1039,6 @@ async function clearCompleted() {
     console.error('Clear completed failed:', err);
     showError('清除失败: ' + err.message);
     await loadTodos();
-  } finally {
-    isMutating = false;
   }
 }
 
